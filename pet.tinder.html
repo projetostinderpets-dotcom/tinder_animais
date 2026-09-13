@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Match Pet - Sistema Web de Adoção Responsivo</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+
+        @keyframes heartPulse {
+            0% { transform: scale(0.7); opacity: 0; }
+            50% { transform: scale(1.15); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.9); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .animate-heart-pulse { animation: heartPulse 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        .animate-pop-in { animation: popIn 0.25s ease-out forwards; }
+
+        .swipe-card {
+            touch-action: none;
+            user-select: none;
+            will-change: transform;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .swipe-card.dragging {
+            transition: none !important;
+        }
+
+        .stamp-like {
+            border: 4px solid #10b981;
+            color: #10b981;
+            transform: rotate(-15deg);
+        }
+
+        .stamp-nope {
+            border: 4px solid #ef4444;
+            color: #ef4444;
+            transform: rotate(15deg);
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="h-full flex flex-col text-slate-800 antialiased selection:bg-rose-500 selection:text-white">
+
+    <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <!-- Logo & Brand -->
+            <div class="flex items-center gap-2 cursor-pointer" onclick="switchTab('feed')">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-rose-500 via-pink-500 to-amber-400 flex items-center justify-center text-white shadow-md shadow-rose-200">
+                    <i class="fa-solid fa-paw text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-xl tracking-tight bg-gradient-to-r from-rose-600 to-orange-500 bg-clip-text text-transparent">
+                        Match Pet
+                    </h1>
+                    <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400 block -mt-1">Protótipo Acadêmico</span>
+                </div>
+            </div>
+
+            <!-- Profile / Role Switcher -->
+            <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <button id="role-adotante-btn" onclick="setRole('adotante')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 bg-white text-rose-600 shadow-sm">
+                    <i class="fa-solid fa-heart mr-1"></i> Adotante
+                </button>
+                <button id="role-ong-btn" onclick="setRole('ong')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 text-slate-600 hover:text-slate-900">
+                    <i class="fa-solid fa-shield-cat mr-1"></i> ONG / Admin
+                </button>
+            </div>
+        </div>
+
+        <!-- Sub-Navegação para Adotante -->
+        <nav id="nav-adotante" class="border-t border-slate-100 bg-slate-50/50">
+            <div class="max-w-md mx-auto flex justify-around py-2 px-4 text-xs font-medium">
+                <button onclick="switchTab('feed')" id="tab-feed" class="nav-tab active text-rose-600 flex flex-col items-center gap-1 py-1 px-4 rounded-xl">
+                    <i class="fa-solid fa-fire text-lg"></i>
+                    <span>Descobrir</span>
+                </button>
+                <button onclick="switchTab('filter')" id="tab-filter" class="nav-tab text-slate-500 hover:text-rose-600 flex flex-col items-center gap-1 py-1 px-4 rounded-xl">
+                    <i class="fa-solid fa-sliders text-lg"></i>
+                    <span>Filtros</span>
+                </button>
+                <button onclick="switchTab('matches')" id="tab-matches" class="nav-tab text-slate-500 hover:text-rose-600 flex flex-col items-center gap-1 py-1 px-4 rounded-xl relative">
+                    <i class="fa-solid fa-comments text-lg"></i>
+                    <span>Matches & Chat</span>
+                    <span id="badge-matches-count" class="hidden absolute top-0 right-3 w-4 h-4 bg-rose-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center">0</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Sub-Navegação para ONG / Admin -->
+        <nav id="nav-ong" class="hidden border-t border-slate-100 bg-slate-50/50">
+            <div class="max-w-2xl mx-auto flex justify-around py-2 px-4 text-xs font-medium">
+                <button onclick="switchOngTab('dashboard')" id="tab-ong-dashboard" class="ong-nav-tab text-rose-600 flex flex-col items-center gap-1 py-1 px-4 rounded-xl">
+                    <i class="fa-solid fa-chart-pie text-lg"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button onclick="switchOngTab('add-pet')" id="tab-ong-add" class="ong-nav-tab text-slate-500 hover:text-rose-600 flex flex-col items-center gap-1 py-1 px-4 rounded-xl">
+                    <i class="fa-solid fa-square-plus text-lg"></i>
+                    <span>Cadastrar Pet</span>
+                </button>
+                <button onclick="switchOngTab('manage-pets')" id="tab-ong-manage" class="ong-nav-tab text-slate-500 hover:text-rose-600 flex flex-col items-center gap-1 py-1 px-4 rounded-xl">
+                    <i class="fa-solid fa-list-check text-lg"></i>
+                    <span>Gerenciar Pets</span>
+                </button>
+                <button onclick="switchOngTab('applicants')" id="tab-ong-applicants" class="ong-nav-tab text-slate-500 hover:text-rose-600 flex flex-col items-center gap-1 py-1 px-4 rounded-xl relative">
+                    <i class="fa-solid fa-user-check text-lg"></i>
+                    <span>Interessados</span>
+                    <span id="badge-applicants-count" class="absolute top-0 right-3 w-4 h-4 bg-amber-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center">0</span>
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <main class="flex-1 max-w-6xl w-full mx-auto p-4 flex flex-col items-center justify-start overflow-y-auto">
+
+        <!-- ================= VISÃO ADOTANTE ================= -->
+        <div id="view-adotante" class="w-full flex-1 flex flex-col items-center max-w-md mx-auto">
+            
+            <!-- FEED / SWIPER VIEW -->
+            <section id="section-feed" class="w-full flex-1 flex flex-col items-center justify-between gap-4 py-2">
+                <!-- Filtros Rápidos (Chips) -->
+                <div class="w-full flex items-center justify-between gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
+                    <button onclick="setQuickFilter('todos', this)" class="quick-filter-chip bg-rose-500 text-white font-medium px-3.5 py-1.5 rounded-full whitespace-nowrap shadow-sm">
+                        Todos
+                    </button>
+                    <button onclick="setQuickFilter('cachorro', this)" class="quick-filter-chip bg-white border border-slate-200 text-slate-600 font-medium px-3.5 py-1.5 rounded-full whitespace-nowrap hover:bg-slate-50">
+                        🐶 Cães
+                    </button>
+                    <button onclick="setQuickFilter('gato', this)" class="quick-filter-chip bg-white border border-slate-200 text-slate-600 font-medium px-3.5 py-1.5 rounded-full whitespace-nowrap hover:bg-slate-50">
+                        🐱 Gatos
+                    </button>
+                    <button onclick="setQuickFilter('Pequeno', this)" class="quick-filter-chip bg-white border border-slate-200 text-slate-600 font-medium px-3.5 py-1.5 rounded-full whitespace-nowrap hover:bg-slate-50">
+                        Porte Pequeno
+                    </button>
+                </div>
+
+                <!-- Card Container Stack -->
+                <div class="relative w-full aspect-[3/4] max-h-[520px] flex items-center justify-center my-auto">
+                    <!-- Cards dinâmicos inseridos via JS -->
+                    <div id="card-deck" class="relative w-full h-full"></div>
+
+                    <!-- State Vazio (Sem mais cartões) -->
+                    <div id="empty-deck-state" class="hidden absolute inset-0 bg-white rounded-3xl border border-slate-200 p-6 flex flex-col items-center justify-center text-center shadow-lg">
+                        <div class="w-20 h-20 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center text-3xl mb-4">
+                            <i class="fa-solid fa-face-smile-wink"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-800 mb-2">Você viu todos os pets!</h3>
+                        <p class="text-slate-500 text-sm mb-6 max-w-xs">Não há novos animais disponíveis com esses filtros no momento.</p>
+                        <button onclick="resetSwiperDeck()" class="px-5 py-2.5 bg-rose-500 hover:bg-rose-600 text-white font-semibold text-sm rounded-xl transition-all shadow-md shadow-rose-200">
+                            <i class="fa-solid fa-rotate-left mr-2"></i> Recarregar Cartões
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Botões de Ação Inferiores -->
+                <div class="flex items-center justify-center gap-6 w-full py-2">
+                    <button onclick="handleSwipeAction('dislike')" title="Passar (Descurtir)" class="w-14 h-14 rounded-full bg-white text-rose-500 border border-slate-200 shadow-lg hover:bg-rose-50 hover:scale-110 active:scale-95 transition-all flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                    <button onclick="openPetDetailsModal()" title="Ver Detalhes do Pet" class="w-11 h-11 rounded-full bg-white text-sky-500 border border-slate-200 shadow-md hover:bg-sky-50 hover:scale-110 active:scale-95 transition-all flex items-center justify-center text-base">
+                        <i class="fa-solid fa-circle-info"></i>
+                    </button>
+                    <button onclick="handleSwipeAction('like')" title="Match (Curtir)" class="w-14 h-14 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-white shadow-lg shadow-emerald-200 hover:scale-110 active:scale-95 transition-all flex items-center justify-center text-2xl">
+                        <i class="fa-solid fa-heart"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- TAB: FILTROS -->
+            <section id="section-filter" class="hidden w-full bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-6">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <h2 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-rose-500"></i> Filtros de Adoção
+                    </h2>
+                    <button onclick="resetFilters()" class="text-xs text-rose-600 hover:underline font-semibold">Limpar Filtros</button>
+                </div>
+
+                <!-- Espécie -->
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Espécie</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="selectFilterBtn('specie', 'all', this)" class="filter-specie-btn active py-2.5 text-xs font-semibold rounded-xl border border-rose-500 bg-rose-50 text-rose-600">
+                            Todos
+                        </button>
+                        <button onclick="selectFilterBtn('specie', 'cachorro', this)" class="filter-specie-btn py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
+                            🐶 Cão
+                        </button>
+                        <button onclick="selectFilterBtn('specie', 'gato', this)" class="filter-specie-btn py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
+                            🐱 Gato
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Porte -->
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Porte</label>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button onclick="selectFilterBtn('size', 'all', this)" class="filter-size-btn active py-2 text-xs font-semibold rounded-xl border border-rose-500 bg-rose-50 text-rose-600">Todos</button>
+                        <button onclick="selectFilterBtn('size', 'Pequeno', this)" class="filter-size-btn py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">Pequeno</button>
+                        <button onclick="selectFilterBtn('size', 'Médio', this)" class="filter-size-btn py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">Médio</button>
+                        <button onclick="selectFilterBtn('size', 'Grande', this)" class="filter-size-btn py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">Grande</button>
+                    </div>
+                </div>
+
+                <!-- Sexo -->
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Sexo</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="selectFilterBtn('gender', 'all', this)" class="filter-gender-btn active py-2 text-xs font-semibold rounded-xl border border-rose-500 bg-rose-50 text-rose-600">Ambos</button>
+                        <button onclick="selectFilterBtn('gender', 'Macho', this)" class="filter-gender-btn py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">Macho</button>
+                        <button onclick="selectFilterBtn('gender', 'Fêmea', this)" class="filter-gender-btn py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">Fêmea</button>
+                    </div>
+                </div>
+
+                <button onclick="applyFiltersAndSwitch()" class="w-full py-3 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold rounded-xl shadow-md shadow-rose-200 hover:opacity-95 transition-all">
+                    Aplicar Filtros e Ver Animais
+                </button>
+            </section>
+
+            <!-- TAB: MATCHES & CHAT -->
+            <section id="section-matches" class="hidden w-full flex-1 flex flex-col bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden min-h-[500px]">
+                <!-- Lista de Matches na parte superior -->
+                <div class="p-4 border-b border-slate-100 bg-slate-50/50">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Seus Matches Recentes</h3>
+                    <div id="matches-horizontal-list" class="flex gap-3 overflow-x-auto pb-1 no-scrollbar min-h-[70px] items-center">
+                        <!-- Renderizado via JS -->
+                    </div>
+                </div>
+
+                <!-- Área de Chat Ativo -->
+                <div class="flex-1 flex flex-col justify-between">
+                    <!-- Cabeçalho do Chat -->
+                    <div id="chat-header" class="p-3 bg-slate-100/70 border-b border-slate-200 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <img id="chat-pet-img" src="https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=150" class="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm">
+                            <div>
+                                <h4 id="chat-pet-name" class="font-bold text-sm text-slate-800">Selecione um Match</h4>
+                                <p id="chat-ong-name" class="text-xs text-slate-500">Conversa direta com o protetor</p>
+                            </div>
+                        </div>
+                        <span id="chat-status-indicator" class="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">Online</span>
+                    </div>
+
+                    <!-- Mensagens -->
+                    <div id="chat-messages-container" class="flex-1 p-4 overflow-y-auto space-y-3 max-h-[300px] bg-slate-50/30">
+                        <div class="text-center text-xs text-slate-400 my-4">Selecione um animal acima ou dê um Match para iniciar o contato de adoção.</div>
+                    </div>
+
+                    <!-- Input + Respostas Rápidas -->
+                    <div class="p-3 border-t border-slate-200 bg-white space-y-2">
+                        <div id="quick-replies" class="flex gap-2 overflow-x-auto pb-1 text-[11px]">
+                            <button onclick="sendQuickReply('Olá! Gostaria de saber mais sobre o processo de adoção.')" class="bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 px-3 py-1 rounded-full whitespace-nowrap transition-colors border border-slate-200">
+                                👋 Como funciona a adoção?
+                            </button>
+                            <button onclick="sendQuickReply('Posso agendar uma visita para conhecê-lo?')" class="bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 px-3 py-1 rounded-full whitespace-nowrap transition-colors border border-slate-200">
+                                🏠 Posso fazer uma visita?
+                            </button>
+                        </div>
+                        <form id="chat-form" onsubmit="handleSendChatMessage(event)" class="flex gap-2">
+                            <input type="text" id="chat-input-text" placeholder="Escreva sua mensagem..." class="flex-1 bg-slate-100 text-slate-800 text-xs px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-rose-500">
+                            <button type="submit" class="bg-rose-500 text-white px-4 py-2.5 rounded-xl font-semibold text-xs hover:bg-rose-600 transition-colors shadow-sm">
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ================= VISÃO ONG / ADMIN ================= -->
+        <div id="view-ong" class="hidden w-full flex-1 flex flex-col max-w-4xl mx-auto space-y-6">
+            
+            <!-- ONG TAB 1: DASHBOARD -->
+            <section id="section-ong-dashboard" class="space-y-6">
+                <!-- Banner Boas Vindas -->
+                <div class="bg-gradient-to-r from-slate-900 to-rose-950 text-white rounded-3xl p-6 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <span class="bg-rose-500/30 text-rose-300 text-xs font-semibold px-3 py-1 rounded-full border border-rose-500/40">Painel ONG Resgate Animais</span>
+                        <h2 class="text-2xl font-extrabold mt-2">Visão Geral & Métricas</h2>
+                        <p class="text-slate-300 text-xs mt-1">Acompanhe as interações dos adotantes com seus animais cadastrados.</p>
+                    </div>
+                    <button onclick="switchOngTab('add-pet')" class="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-semibold shadow-md transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> Novo Animal
+                    </button>
+                </div>
+
+                <!-- Métricas Grid -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-slate-400 mb-2">
+                            <span class="text-xs font-bold uppercase">Animais Ativos</span>
+                            <i class="fa-solid fa-paw text-rose-500 text-lg"></i>
+                        </div>
+                        <span id="metric-total-pets" class="text-2xl font-black text-slate-800">0</span>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-slate-400 mb-2">
+                            <span class="text-xs font-bold uppercase">Total de Matches</span>
+                            <i class="fa-solid fa-heart text-emerald-500 text-lg"></i>
+                        </div>
+                        <span id="metric-total-matches" class="text-2xl font-black text-slate-800">0</span>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-slate-400 mb-2">
+                            <span class="text-xs font-bold uppercase">Solicitações</span>
+                            <i class="fa-solid fa-file-signature text-amber-500 text-lg"></i>
+                        </div>
+                        <span id="metric-total-applicants" class="text-2xl font-black text-slate-800">0</span>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-slate-400 mb-2">
+                            <span class="text-xs font-bold uppercase">Taxa de Match</span>
+                            <i class="fa-solid fa-chart-line text-sky-500 text-lg"></i>
+                        </div>
+                        <span id="metric-match-rate" class="text-2xl font-black text-slate-800">0%</span>
+                    </div>
+                </div>
+
+                <!-- Ranking de Popularidade dos Pets -->
+                <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <h3 class="font-bold text-base text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-fire text-orange-500"></i> Pets Mais Curtidos no Aplicativo
+                    </h3>
+                    <div id="ong-ranking-list" class="space-y-3">
+                        <!-- Renderizado via JS -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- ONG TAB 2: CADASTRAR PET -->
+            <section id="section-ong-add-pet" class="hidden bg-white rounded-3xl p-6 border border-slate-200 shadow-sm max-w-2xl mx-auto w-full">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
+                    <h2 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-square-plus text-rose-500"></i> Cadastrar Novo Pet para Adoção
+                    </h2>
+                    <span class="text-xs text-slate-400">* Campos obrigatórios</span>
+                </div>
+
+                <form id="form-add-pet" onsubmit="handleAddNewPet(event)" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Nome do Pet *</label>
+                            <input type="text" id="input-pet-name" required placeholder="Ex: Mel, Bob, Thor" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-rose-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Espécie *</label>
+                            <select id="input-pet-specie" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-rose-500">
+                                <option value="cachorro">🐶 Cachorro</option>
+                                <option value="gato">🐱 Gato</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Idade *</label>
+                            <input type="text" id="input-pet-age" required placeholder="Ex: 2 anos, 5 meses" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-rose-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Porte *</label>
+                            <select id="input-pet-size" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-rose-500">
+                                <option value="Pequeno">Pequeno</option>
+                                <option value="Médio" selected>Médio</option>
+                                <option value="Grande">Grande</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Sexo *</label>
+                            <select id="input-pet-gender" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-rose-500">
+                                <option value="Macho">Macho</option>
+                                <option value="Fêmea">Fêmea</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Raça / Mistura *</label>
+                            <input type="text" id="input-pet-breed" required placeholder="Ex: Vira-Lata (SRD), Golden Retriever" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-rose-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Localização (Cidade/UF) *</label>
+                            <input type="text" id="input-pet-location" required placeholder="Ex: São Paulo - SP" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-rose-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">URL da Imagem *</label>
+                        <input type="url" id="input-pet-img" required placeholder="https://images.unsplash.com/..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-rose-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Descrição / Biografia *</label>
+                        <textarea id="input-pet-bio" rows="3" required placeholder="Conte a história do pet, personalidade, hábitos..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs focus:outline-none focus:border-rose-500"></textarea>
+                    </div>
+
+                    <button type="submit" class="w-full py-3 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl shadow-md shadow-rose-200 transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Publicar Pet para Adoção
+                    </button>
+                </form>
+            </section>
+
+            <!-- ONG TAB 3: GERENCIAR PETS -->
+            <section id="section-ong-manage-pets" class="hidden bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                    <h2 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-rose-500"></i> Gerenciamento de Animais Cadastrados
+                    </h2>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-200 text-slate-400 uppercase font-bold text-[10px]">
+                                <th class="py-3 px-2">Pet</th>
+                                <th class="py-3 px-2">Espécie / Porte</th>
+                                <th class="py-3 px-2">Curtidas</th>
+                                <th class="py-3 px-2">Status</th>
+                                <th class="py-3 px-2 text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ong-manage-pets-table-body" class="divide-y divide-slate-100">
+                            <!-- Renderizado via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ONG TAB 4: INTERESSADOS / SOLICITAÇÕES -->
+            <section id="section-ong-applicants" class="hidden bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                    <h2 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-user-check text-rose-500"></i> Solicitantes e Candidatos a Adoção
+                    </h2>
+                </div>
+
+                <div id="ong-applicants-list" class="space-y-4">
+                    <!-- Renderizado via JS -->
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- ================= MODAIS ================= -->
+    
+    <!-- Modal: Detalhes do Pet -->
+    <div id="modal-pet-details" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-pop-in">
+        <div class="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-slate-100 shadow-2xl relative">
+            <button onclick="closePetDetailsModal()" class="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center backdrop-blur-md hover:bg-black/60 transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="relative h-64">
+                <img id="modal-pet-img" src="" class="w-full h-full object-cover">
+                <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent flex items-end p-6">
+                    <div>
+                        <h2 id="modal-pet-name-age" class="text-2xl font-extrabold text-white"></h2>
+                        <p id="modal-pet-breed-location" class="text-xs text-slate-200"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div class="bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+                        <span class="block text-[10px] uppercase font-bold text-slate-400">Espécie</span>
+                        <span id="modal-pet-specie" class="font-bold text-slate-700"></span>
+                    </div>
+                    <div class="bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+                        <span class="block text-[10px] uppercase font-bold text-slate-400">Porte</span>
+                        <span id="modal-pet-size" class="font-bold text-slate-700"></span>
+                    </div>
+                    <div class="bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+                        <span class="block text-[10px] uppercase font-bold text-slate-400">Sexo</span>
+                        <span id="modal-pet-gender" class="font-bold text-slate-700"></span>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400 mb-1">Sobre mim</h4>
+                    <p id="modal-pet-bio" class="text-xs text-slate-600 leading-relaxed"></p>
+                </div>
+                <div class="pt-2 border-t border-slate-100 flex gap-3">
+                    <button onclick="handleSwipeAction('dislike'); closePetDetailsModal();" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50">
+                        Passar
+                    </button>
+                    <button onclick="handleSwipeAction('like'); closePetDetailsModal();" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold shadow-md shadow-emerald-200 hover:opacity-95">
+                        Dar Match <i class="fa-solid fa-heart ml-1"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: IT'S A MATCH OVERLAY -->
+    <div id="modal-its-a-match" class="hidden fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center text-white animate-pop-in">
+        <div class="animate-heart-pulse text-6xl text-rose-500 mb-4">
+            <i class="fa-solid fa-heart"></i>
+        </div>
+        <h2 class="text-4xl font-black bg-gradient-to-r from-rose-400 via-pink-400 to-amber-300 bg-clip-text text-transparent">
+            Deu Match!
+        </h2>
+        <p class="text-sm text-slate-300 mt-2 max-w-xs">Você e o protetor demonstraram interesse na adoção deste pet!</p>
+
+        <div class="flex items-center justify-center gap-4 my-8">
+            <div class="relative">
+                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150" class="w-20 h-20 rounded-full border-4 border-white shadow-xl object-cover">
+                <span class="absolute bottom-0 right-0 bg-rose-500 text-white p-1 rounded-full text-xs"><i class="fa-solid fa-user"></i></span>
+            </div>
+            <i class="fa-solid fa-bolt text-amber-400 text-2xl animate-pulse"></i>
+            <div class="relative">
+                <img id="match-modal-pet-img" src="" class="w-20 h-20 rounded-full border-4 border-white shadow-xl object-cover">
+                <span class="absolute bottom-0 right-0 bg-emerald-500 text-white p-1 rounded-full text-xs"><i class="fa-solid fa-paw"></i></span>
+            </div>
+        </div>
+
+        <div class="space-y-3 w-full max-w-xs">
+            <button onclick="goToChatFromMatchModal()" class="w-full py-3 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold rounded-xl shadow-lg shadow-rose-500/30 hover:opacity-95 transition-all">
+                Enviar Mensagem Agora
+            </button>
+            <button onclick="closeMatchModal()" class="w-full py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-all border border-white/20">
+                Continuar Procurando
+            </button>
+        </div>
+    </div>
+
+    <!-- SCRIPT DA APLICAÇÃO -->
+    <script>
+        // MOCK INITIAL DATA
+        const initialPets = [
+            {
+                id: '1',
+                name: 'Thor',
+                specie: 'cachorro',
+                breed: 'Vira-lata (SRD)',
+                age: '2 anos',
+                size: 'Médio',
+                gender: 'Macho',
+                location: 'São Paulo - SP',
+                img: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=600',
+                bio: 'Thor é super carinhoso, vacinado e muito brincalhão. Se dá muito bem com outros cães e crianças.',
+                likes: 12,
+                status: 'disponivel'
+            },
+            {
+                id: '2',
+                name: 'Luna',
+                specie: 'gato',
+                breed: 'Siamês',
+                age: '1 ano',
+                size: 'Pequeno',
+                gender: 'Fêmea',
+                location: 'Campinas - SP',
+                img: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600',
+                bio: 'Luna é tranquila, castrada e adora um colinho no fim da tarde. Perfeita para apartamentos.',
+                likes: 24,
+                status: 'disponivel'
+            },
+            {
+                id: '3',
+                name: 'Pipoca',
+                specie: 'cachorro',
+                breed: 'Poodle Mix',
+                age: '6 meses',
+                size: 'Pequeno',
+                gender: 'Fêmea',
+                location: 'São Paulo - SP',
+                img: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=600',
+                bio: 'Filhote cheia de energia, amável e adora aprender truques novos.',
+                likes: 8,
+                status: 'disponivel'
+            },
+            {
+                id: '4',
+                name: 'Simba',
+                specie: 'gato',
+                breed: 'Vira-lata Laranja',
+                age: '3 anos',
+                size: 'Médio',
+                gender: 'Macho',
+                location: 'Santos - SP',
+                img: 'https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=600',
+                bio: 'Um verdadeiro lorde. Calmo, sociável e adorador de sachês de salmão.',
+                likes: 19,
+                status: 'disponivel'
+            }
+        ];
+
+        // APP STATE
+        let pets = JSON.parse(localStorage.getItem('matchpet_pets')) || initialPets;
+        let activeMatches = JSON.parse(localStorage.getItem('matchpet_matches')) || [];
+        let chatMessages = JSON.parse(localStorage.getItem('matchpet_chats')) || {};
+        let applicants = JSON.parse(localStorage.getItem('matchpet_applicants')) || [
+            { id: 'app1', petId: '1', petName: 'Thor', userName: 'Felipe Amaral', status: 'Em Análise', date: 'Há 2 horas' }
+        ];
+
+        let currentRole = 'adotante'; // 'adotante' | 'ong'
+        let currentTab = 'feed';
+        let currentOngTab = 'dashboard';
+        let activeChatPetId = null;
+
+        // Swiper Cards Stack State
+        let currentFilteredDeck = [];
+        let activeCardIndex = 0;
+
+        // Active Filters State
+        let activeFilters = {
+            specie: 'all',
+            size: 'all',
+            gender: 'all'
+        };
+
+        // DOM ELEMENTS
+        const cardDeck = document.getElementById('card-deck');
+        const emptyDeckState = document.getElementById('empty-deck-state');
+
+        // INITIALIZATION
+        document.addEventListener('DOMContentLoaded', () => {
+            saveStateToLocalStorage();
+            applyFiltersAndRenderDeck();
+            renderMatchesList();
+            updateOngDashboardMetrics();
+            renderOngRanking();
+            renderOngManageTable();
+            renderOngApplicants();
+            updateBadges();
+        });
+
+        function saveStateToLocalStorage() {
+            localStorage.setItem('matchpet_pets', JSON.stringify(pets));
+            localStorage.setItem('matchpet_matches', JSON.stringify(activeMatches));
+            localStorage.setItem('matchpet_chats', JSON.stringify(chatMessages));
+            localStorage.setItem('matchpet_applicants', JSON.stringify(applicants));
+        }
+
+        // ROLE AND TAB NAVIGATION CONTROLLER
+        function setRole(role) {
+            currentRole = role;
+            const adotanteBtn = document.getElementById('role-adotante-btn');
+            const ongBtn = document.getElementById('role-ong-btn');
+            const navAdotante = document.getElementById('nav-adotante');
+            const navOng = document.getElementById('nav-ong');
+            const viewAdotante = document.getElementById('view-adotante');
+            const viewOng = document.getElementById('view-ong');
+
+            if (role === 'adotante') {
+                adotanteBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 bg-white text-rose-600 shadow-sm';
+                ongBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 text-slate-600 hover:text-slate-900';
+                navAdotante.classList.remove('hidden');
+                navOng.classList.add('hidden');
+                viewAdotante.classList.remove('hidden');
+                viewOng.classList.add('hidden');
+            } else {
+                ongBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 bg-white text-rose-600 shadow-sm';
+                adotanteBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 text-slate-600 hover:text-slate-900';
+                navOng.classList.remove('hidden');
+                navAdotante.classList.add('hidden');
+                viewOng.classList.remove('hidden');
+                viewAdotante.classList.add('hidden');
+            }
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            ['feed', 'filter', 'matches'].forEach(t => {
+                const section = document.getElementById(`section-${t}`);
+                const tabBtn = document.getElementById(`tab-${t}`);
+                if (t === tab) {
+                    section.classList.remove('hidden');
+                    tabBtn.className = 'nav-tab active text-rose-600 flex flex-col items-center gap-1 py-1 px-4 rounded-xl';
+                } else {
+                    section.classList.add('hidden');
+                    tabBtn.className = 'nav-tab text-slate-500 hover:text-rose-600 flex flex-col items-center gap-1 py-1 px-4 rounded-xl relative';
+                }
+            });
+        }
+
+        function switchOngTab(tab) {
+            currentOngTab = tab;
+            ['dashboard', 'add-pet', 'manage-pets', 'applicants'].forEach(t => {
+                const sectionId = t === 'add-pet' ? 'section-ong-add-pet' : (t === 'manage-pets' ? 'section-ong-manage-pets' : `section-ong-${t}`);
+                const section = document.getElementById(sectionId);
+                const tabBtn = document.getElementById(`tab-ong-${t === 'add-pet' ? 'add' : (t === 'manage-pets' ? 'manage' : t)}`);
+                
+                if (t === tab) {
+                    section.classList.remove('hidden');
+                    if(tabBtn) tabBtn.className = 'ong-nav-tab text-rose-600 flex flex-col items-center gap-1 py-1 px-4 rounded-xl font-bold';
+                } else {
+                    section.classList.add('hidden');
+                    if(tabBtn) tabBtn.className = 'ong-nav-tab text-slate-500 hover:text-rose-600 flex flex-col items-center gap-1 py-1 px-4 rounded-xl';
+                }
+            });
+        }
+
+        // SWIPER DECK SYSTEM (CARD STACK & DRAG MECHANICS)
+        function applyFiltersAndRenderDeck() {
+            currentFilteredDeck = pets.filter(pet => {
+                if (pet.status !== 'disponivel') return false;
+                if (activeFilters.specie !== 'all' && pet.specie !== activeFilters.specie) return false;
+                if (activeFilters.size !== 'all' && pet.size !== activeFilters.size) return false;
+                if (activeFilters.gender !== 'all' && pet.gender !== activeFilters.gender) return false;
+                return true;
+            });
+
+            activeCardIndex = 0;
+            renderDeckCards();
+        }
+
+        function renderDeckCards() {
+            cardDeck.innerHTML = '';
+            
+            if (activeCardIndex >= currentFilteredDeck.length) {
+                emptyDeckState.classList.remove('hidden');
+                return;
+            } else {
+                emptyDeckState.classList.add('hidden');
+            }
+
+            // Render top 2 cards for optimal stack performance
+            const visiblePets = currentFilteredDeck.slice(activeCardIndex, activeCardIndex + 2);
+
+            visiblePets.reverse().forEach((pet, index) => {
+                const isTop = index === visiblePets.length - 1;
+                const card = document.createElement('div');
+                card.className = `swipe-card absolute inset-0 bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-xl flex flex-col ${isTop ? 'z-20 cursor-grab' : 'z-10 scale-95 opacity-80 pointer-events-none'}`;
+                card.id = `pet-card-${pet.id}`;
+
+                card.innerHTML = `
+                    <div class="relative flex-1 bg-slate-100 overflow-hidden">
+                        <img src="${pet.img}" alt="${pet.name}" class="w-full h-full object-cover">
+                        
+                        <!-- Overlay Visual Stamps -->
+                        <div id="stamp-like-${pet.id}" class="stamp-like opacity-0 absolute top-8 left-8 z-30 font-black text-2xl uppercase tracking-widest px-4 py-1 rounded-xl border-4 pointer-events-none transition-opacity">
+                            MATCH!
+                        </div>
+                        <div id="stamp-nope-${pet.id}" class="stamp-nope opacity-0 absolute top-8 right-8 z-30 font-black text-2xl uppercase tracking-widest px-4 py-1 rounded-xl border-4 pointer-events-none transition-opacity">
+                            PASSAR
+                        </div>
+
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex items-end p-5 text-white">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-2xl font-extrabold tracking-tight">${pet.name}, ${pet.age}</h3>
+                                    <span class="bg-white/20 backdrop-blur-md px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase">${pet.gender}</span>
+                                </div>
+                                <p class="text-xs text-slate-300 mt-1 flex items-center gap-1">
+                                    <i class="fa-solid fa-location-dot text-rose-400"></i> ${pet.location} • ${pet.breed}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                if (isTop) {
+                    attachDragEvents(card, pet);
+                }
+
+                cardDeck.appendChild(card);
+            });
+        }
+
+        // DRAG & TOUCH ENGINE
+        function attachDragEvents(cardElement, pet) {
+            let startX = 0, startY = 0, currentX = 0, currentY = 0;
+            let isDragging = false;
+
+            const likeStamp = cardElement.querySelector(`#stamp-like-${pet.id}`);
+            const nopeStamp = cardElement.querySelector(`#stamp-nope-${pet.id}`);
+
+            const onStart = (e) => {
+                isDragging = true;
+                cardElement.classList.add('dragging');
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+                startX = clientX;
+                startY = clientY;
+            };
+
+            const onMove = (e) => {
+                if (!isDragging) return;
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+                currentX = clientX - startX;
+                currentY = clientY - startY;
+
+                const rotate = currentX * 0.08;
+                cardElement.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) rotate(${rotate}deg)`;
+
+                // Opacity feedback for stamps
+                const opacity = Math.min(Math.abs(currentX) / 100, 1);
+                if (currentX > 0) {
+                    if (likeStamp) likeStamp.style.opacity = opacity;
+                    if (nopeStamp) nopeStamp.style.opacity = 0;
+                } else {
+                    if (nopeStamp) nopeStamp.style.opacity = opacity;
+                    if (likeStamp) likeStamp.style.opacity = 0;
+                }
+            };
+
+            const onEnd = () => {
+                if (!isDragging) return;
+                isDragging = false;
+                cardElement.classList.remove('dragging');
+
+                const threshold = 120;
+                if (currentX > threshold) {
+                    executeSwipeAction('like', cardElement, pet);
+                } else if (currentX < -threshold) {
+                    executeSwipeAction('dislike', cardElement, pet);
+                } else {
+                    // Reset position smoothly
+                    cardElement.style.transform = '';
+                    if (likeStamp) likeStamp.style.opacity = 0;
+                    if (nopeStamp) nopeStamp.style.opacity = 0;
+                }
+            };
+
+            // Touch events
+            cardElement.addEventListener('touchstart', onStart, { passive: true });
+            window.addEventListener('touchmove', onMove, { passive: true });
+            window.addEventListener('touchend', onEnd);
+
+            // Mouse events
+            cardElement.addEventListener('mousedown', onStart);
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onEnd);
+        }
+
+        function handleSwipeAction(action) {
+            if (activeCardIndex >= currentFilteredDeck.length) return;
+            const pet = currentFilteredDeck[activeCardIndex];
+            const cardElement = document.getElementById(`pet-card-${pet.id}`);
+            if (cardElement) {
+                executeSwipeAction(action, cardElement, pet);
+            }
+        }
+
+        function executeSwipeAction(action, cardElement, pet) {
+            const flyDirection = action === 'like' ? 1000 : -1000;
+            cardElement.style.transform = `translate3d(${flyDirection}px, ${cardElement.offsetTop}px, 0) rotate(${flyDirection > 0 ? 45 : -45}deg)`;
+            cardElement.style.opacity = '0';
+
+            if (action === 'like') {
+                pet.likes = (pet.likes || 0) + 1;
+                registerMatch(pet);
+            }
+
+            saveStateToLocalStorage();
+            updateOngDashboardMetrics();
+
+            setTimeout(() => {
+                activeCardIndex++;
+                renderDeckCards();
+            }, 200);
+        }
+
+        function resetSwiperDeck() {
+            activeCardIndex = 0;
+            renderDeckCards();
+        }
+
+        // FILTER SYSTEM CONTROLLERS
+        function selectFilterBtn(type, val, btn) {
+            activeFilters[type] = val;
+            const buttons = document.querySelectorAll(`.filter-${type}-btn`);
+            buttons.forEach(b => {
+                b.className = `filter-${type}-btn py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50`;
+            });
+            btn.className = `filter-${type}-btn active py-2 text-xs font-semibold rounded-xl border border-rose-500 bg-rose-50 text-rose-600`;
+        }
+
+        function setQuickFilter(specie, btn) {
+            document.querySelectorAll('.quick-filter-chip').forEach(b => {
+                b.className = 'quick-filter-chip bg-white border border-slate-200 text-slate-600 font-medium px-3.5 py-1.5 rounded-full whitespace-nowrap hover:bg-slate-50';
+            });
+            btn.className = 'quick-filter-chip bg-rose-500 text-white font-medium px-3.5 py-1.5 rounded-full whitespace-nowrap shadow-sm';
+
+            if (specie === 'todos') {
+                activeFilters.specie = 'all';
+                activeFilters.size = 'all';
+            } else if (specie === 'Pequeno') {
+                activeFilters.size = 'Pequeno';
+                activeFilters.specie = 'all';
+            } else {
+                activeFilters.specie = specie;
+                activeFilters.size = 'all';
+            }
+            applyFiltersAndRenderDeck();
+        }
+
+        function applyFiltersAndSwitch() {
+            applyFiltersAndRenderDeck();
+            switchTab('feed');
+        }
+
+        function resetFilters() {
+            activeFilters = { specie: 'all', size: 'all', gender: 'all' };
+            applyFiltersAndRenderDeck();
+        }
+
+        // MATCH & CHAT SYSTEM
+        function registerMatch(pet) {
+            if (!activeMatches.some(m => m.id === pet.id)) {
+                activeMatches.push(pet);
+                
+                // Add default initial message if none exists
+                if (!chatMessages[pet.id]) {
+                    chatMessages[pet.id] = [
+                        { sender: 'ong', text: `Olá! Vimos seu Match com ${pet.name}! Como podemos te ajudar no processo de adoção?` }
+                    ];
+                }
+
+                // Add to applicant list for ONG
+                applicants.push({
+                    id: 'app_' + Date.now(),
+                    petId: pet.id,
+                    petName: pet.name,
+                    userName: 'Você (Adotante)',
+                    status: 'Em Análise',
+                    date: 'Agora'
+                });
+
+                saveStateToLocalStorage();
+                renderMatchesList();
+                updateBadges();
+                showMatchModal(pet);
+            }
+        }
+
+        function showMatchModal(pet) {
+            const modal = document.getElementById('modal-its-a-match');
+            document.getElementById('match-modal-pet-img').src = pet.img;
+            modal.classList.remove('hidden');
+        }
+
+        function closeMatchModal() {
+            document.getElementById('modal-its-a-match').classList.add('hidden');
+        }
+
+        function goToChatFromMatchModal() {
+            closeMatchModal();
+            const lastMatch = activeMatches[activeMatches.length - 1];
+            if (lastMatch) {
+                switchTab('matches');
+                selectChatPet(lastMatch.id);
+            }
+        }
+
+        function renderMatchesList() {
+            const container = document.getElementById('matches-horizontal-list');
+            container.innerHTML = '';
+
+            if (activeMatches.length === 0) {
+                container.innerHTML = `<span class="text-xs text-slate-400 italic">Nenhum match ainda. Continue explorando!</span>`;
+                return;
+            }
+
+            activeMatches.forEach(pet => {
+                const item = document.createElement('div');
+                item.className = 'flex flex-col items-center gap-1 cursor-pointer group min-w-[56px]';
+                item.onclick = () => selectChatPet(pet.id);
+                item.innerHTML = `
+                    <div class="w-12 h-12 rounded-full border-2 border-rose-500 p-0.5 group-hover:scale-105 transition-transform">
+                        <img src="${pet.img}" class="w-full h-full rounded-full object-cover">
+                    </div>
+                    <span class="text-[10px] font-semibold text-slate-700 group-hover:text-rose-600 truncate max-w-[56px]">${pet.name}</span>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function selectChatPet(petId) {
+            activeChatPetId = petId;
+            const pet = pets.find(p => p.id === petId);
+            if (!pet) return;
+
+            document.getElementById('chat-pet-img').src = pet.img;
+            document.getElementById('chat-pet-name').innerText = pet.name;
+            document.getElementById('chat-ong-name').innerText = `ONG Resgate • ${pet.location}`;
+
+            renderChatMessages();
+        }
+
+        function renderChatMessages() {
+            const container = document.getElementById('chat-messages-container');
+            container.innerHTML = '';
+
+            if (!activeChatPetId || !chatMessages[activeChatPetId]) {
+                container.innerHTML = `<div class="text-center text-xs text-slate-400 my-4">Selecione um animal acima ou dê um Match para iniciar o contato de adoção.</div>`;
+                return;
+            }
+
+            const messages = chatMessages[activeChatPetId];
+            messages.forEach(msg => {
+                const bubble = document.createElement('div');
+                const isUser = msg.sender === 'user';
+                bubble.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+                bubble.innerHTML = `
+                    <div class="${isUser ? 'bg-rose-500 text-white rounded-br-none' : 'bg-white border border-slate-200 text-slate-700 rounded-bl-none'} max-w-[80%] px-4 py-2.5 rounded-2xl text-xs shadow-sm leading-relaxed">
+                        ${msg.text}
+                    </div>
+                `;
+                container.appendChild(bubble);
+            });
+
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function handleSendChatMessage(e) {
+            e.preventDefault();
+            const input = document.getElementById('chat-input-text');
+            const text = input.value.trim();
+
+            if (!text || !activeChatPetId) return;
+
+            if (!chatMessages[activeChatPetId]) chatMessages[activeChatPetId] = [];
+
+            chatMessages[activeChatPetId].push({ sender: 'user', text: text });
+            input.value = '';
+            saveStateToLocalStorage();
+            renderChatMessages();
+
+            // Auto response mock
+            setTimeout(() => {
+                chatMessages[activeChatPetId].push({
+                    sender: 'ong',
+                    text: 'Obrigado pelo contato! Nossa equipe de voluntários analisará seu perfil e responderá em breve.'
+                });
+                saveStateToLocalStorage();
+                renderChatMessages();
+            }, 1200);
+        }
+
+        function sendQuickReply(text) {
+            if (!activeChatPetId) return;
+            document.getElementById('chat-input-text').value = text;
+            handleSendChatMessage(new Event('submit'));
+        }
+
+        // ONG DASHBOARD AND MANAGEMENT SYSTEM
+        function updateOngDashboardMetrics() {
+            const totalPets = pets.length;
+            const totalLikes = pets.reduce((acc, p) => acc + (p.likes || 0), 0);
+            const totalApplicants = applicants.length;
+            const matchRate = totalPets > 0 ? Math.round((activeMatches.length / totalPets) * 100) : 0;
+
+            document.getElementById('metric-total-pets').innerText = totalPets;
+            document.getElementById('metric-total-matches').innerText = activeMatches.length;
+            document.getElementById('metric-total-applicants').innerText = totalApplicants;
+            document.getElementById('metric-match-rate').innerText = `${matchRate}%`;
+        }
+
+        function renderOngRanking() {
+            const container = document.getElementById('ong-ranking-list');
+            container.innerHTML = '';
+
+            const sorted = [...pets].sort((a, b) => (b.likes || 0) - (a.likes || 0));
+
+            sorted.forEach((pet, index) => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100';
+                item.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="font-extrabold text-sm w-4 text-slate-400">#${index + 1}</span>
+                        <img src="${pet.img}" class="w-10 h-10 rounded-xl object-cover">
+                        <div>
+                            <h4 class="font-bold text-xs text-slate-800">${pet.name}</h4>
+                            <span class="text-[10px] text-slate-400 uppercase">${pet.specie} • ${pet.breed}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1 text-xs font-bold text-rose-500">
+                        <i class="fa-solid fa-heart"></i> ${pet.likes || 0}
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function handleAddNewPet(e) {
+            e.preventDefault();
+            const newPet = {
+                id: String(Date.now()),
+                name: document.getElementById('input-pet-name').value,
+                specie: document.getElementById('input-pet-specie').value,
+                breed: document.getElementById('input-pet-breed').value,
+                age: document.getElementById('input-pet-age').value,
+                size: document.getElementById('input-pet-size').value,
+                gender: document.getElementById('input-pet-gender').value,
+                location: document.getElementById('input-pet-location').value,
+                img: document.getElementById('input-pet-img').value,
+                bio: document.getElementById('input-pet-bio').value,
+                likes: 0,
+                status: 'disponivel'
+            };
+
+            pets.unshift(newPet);
+            saveStateToLocalStorage();
+            applyFiltersAndRenderDeck();
+            updateOngDashboardMetrics();
+            renderOngRanking();
+            renderOngManageTable();
+
+            document.getElementById('form-add-pet').reset();
+            alert('Pet cadastrado com sucesso!');
+            switchOngTab('manage-pets');
+        }
+
+        function renderOngManageTable() {
+            const tbody = document.getElementById('ong-manage-pets-table-body');
+            tbody.innerHTML = '';
+
+            pets.forEach(pet => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="py-3 px-2">
+                        <div class="flex items-center gap-2">
+                            <img src="${pet.img}" class="w-8 h-8 rounded-lg object-cover">
+                            <span class="font-bold text-slate-700">${pet.name}</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-2 capitalize text-slate-500">${pet.specie} / ${pet.size}</td>
+                    <td class="py-3 px-2 font-semibold text-rose-500"><i class="fa-solid fa-heart mr-1"></i>${pet.likes || 0}</td>
+                    <td class="py-3 px-2">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${pet.status === 'disponivel' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}">
+                            ${pet.status === 'disponivel' ? 'Disponível' : 'Adotado'}
+                        </span>
+                    </td>
+                    <td class="py-3 px-2 text-right space-x-2">
+                        <button onclick="togglePetStatus('${pet.id}')" class="text-slate-400 hover:text-slate-700" title="Alterar Status">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                        </button>
+                        <button onclick="deletePet('${pet.id}')" class="text-rose-400 hover:text-rose-600" title="Excluir">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function togglePetStatus(petId) {
+            pets = pets.map(p => {
+                if (p.id === petId) {
+                    p.status = p.status === 'disponivel' ? 'adotado' : 'disponivel';
+                }
+                return p;
+            });
+            saveStateToLocalStorage();
+            applyFiltersAndRenderDeck();
+            renderOngManageTable();
+        }
+
+        function deletePet(petId) {
+            if (confirm('Tem certeza que deseja remover este pet?')) {
+                pets = pets.filter(p => p.id !== petId);
+                saveStateToLocalStorage();
+                applyFiltersAndRenderDeck();
+                updateOngDashboardMetrics();
+                renderOngRanking();
+                renderOngManageTable();
+            }
+        }
+
+        function renderOngApplicants() {
+            const container = document.getElementById('ong-applicants-list');
+            container.innerHTML = '';
+
+            if (applicants.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400">Nenhum interessado registrado no momento.</p>`;
+                return;
+            }
+
+            applicants.forEach(app => {
+                const card = document.createElement('div');
+                card.className = 'p-4 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4';
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="font-bold text-sm text-slate-800">${app.userName}</span>
+                            <span class="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold">Interesse em ${app.petName}</span>
+                        </div>
+                        <p class="text-xs text-slate-500">Solicitado em: ${app.date}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="updateApplicantStatus('${app.id}', 'Aprovado')" class="px-3 py-1.5 bg-emerald-500 text-white rounded-xl text-xs font-semibold hover:bg-emerald-600 shadow-sm">
+                            Aprovar Adoção
+                        </button>
+                        <button onclick="updateApplicantStatus('${app.id}', 'Recusado')" class="px-3 py-1.5 bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold hover:bg-slate-300">
+                            Recusar
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function updateApplicantStatus(appId, status) {
+            applicants = applicants.map(a => a.id === appId ? { ...a, status } : a);
+            saveStateToLocalStorage();
+            renderOngApplicants();
+            alert(`Status do candidato atualizado para: ${status}`);
+        }
+
+        // MODAL DETALHES DO PET
+        function openPetDetailsModal() {
+            if (activeCardIndex >= currentFilteredDeck.length) return;
+            const pet = currentFilteredDeck[activeCardIndex];
+
+            document.getElementById('modal-pet-img').src = pet.img;
+            document.getElementById('modal-pet-name-age').innerText = `${pet.name}, ${pet.age}`;
+            document.getElementById('modal-pet-breed-location').innerText = `${pet.breed} • ${pet.location}`;
+            document.getElementById('modal-pet-specie').innerText = pet.specie;
+            document.getElementById('modal-pet-size').innerText = pet.size;
+            document.getElementById('modal-pet-gender').innerText = pet.gender;
+            document.getElementById('modal-pet-bio').innerText = pet.bio;
+
+            document.getElementById('modal-pet-details').classList.remove('hidden');
+        }
+
+        function closePetDetailsModal() {
+            document.getElementById('modal-pet-details').classList.add('hidden');
+        }
+
+        function updateBadges() {
+            const matchBadge = document.getElementById('badge-matches-count');
+            const applicantsBadge = document.getElementById('badge-applicants-count');
+
+            if (activeMatches.length > 0) {
+                matchBadge.innerText = activeMatches.length;
+                matchBadge.classList.remove('hidden');
+            } else {
+                matchBadge.classList.add('hidden');
+            }
+
+            if (applicants.length > 0) {
+                applicantsBadge.innerText = applicants.length;
+            }
+        }
+    </script>
+</body>
+</html>
